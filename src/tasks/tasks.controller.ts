@@ -1,47 +1,46 @@
-import { Controller, Delete, Get, Post, Put, Req, Res, Body, Query, Param } from '@nestjs/common';
-import { Task, TasksService } from './tasks.service';
-import type { Request, Response } from 'express';
-
-export interface GetTasksQuery {
-    query: string;
-}
+import { Controller, Get, Post, Body, Query, Param, ParseIntPipe, HttpCode, UseGuards } from '@nestjs/common';
+import { TasksService } from './tasks.service';
+import { CreateTaskDto } from './dtos/create-task.dto';
+import { GetTasksQueryDto } from './dtos/get-tasks-query.dto';
+import { AuthGuard } from './auth/auth.guard';
 
 @Controller('tasks')
 export class TasksController {
     constructor(private tasksService: TasksService) { }
 
+    /*
+    DTO + ValidationPipe: Declarativo, limpio y escalable; valida y transforma automáticamente campos estándar como números, strings y enums.
+    Pipe personalizado: Más control y flexibilidad para reglas complejas o condicionales, pero requiere más código y es menos reutilizable.
+    */
     @Get()
-    getTasks(@Query() query: GetTasksQuery) {
-        console.log(query.query);
+    getTasks(@Query() query: GetTasksQueryDto) {
+        console.log(query.page);
         return this.tasksService.getTasks();
     }
 
-    @Get('/:id') 
-    getTask(@Param('id') id: string) {
-        return this.tasksService.getTask(parseInt(id));
+    //UseGuards para proteger rutas con condiciones personalizadas
+    @Get('/provaGuard')
+    @UseGuards(AuthGuard)
+    getGuardTest() {
+        return "Prova guard";
     }
 
-    //Sintaxis de express para utilizar en nestjs
-    @Get('/express')
-    getTasksExpress(@Req() req: Request, @Res() res: Response) {
-        console.log(req.url);
-        res.status(200).json({
-            message: 'Tareas con express'
-        });
+    // ParseIntPipe convierte el id a number si falla lanzara una excepcion BadRequest
+    @Get('/:id')
+    getTask(@Param('id', ParseIntPipe) id: number) { 
+        return this.tasksService.getTask(id);
     }
 
+    //Control de validaciones
     @Post()
-    createTask(@Body() task: Task) {
+    createTask(@Body() task: CreateTaskDto) {
         return this.tasksService.createTask(task);
     }
 
-    @Put()
-    updateTask(): string {
-        return "actualizando tarea";
-    }
-
-    @Delete()
-    deleteTask(): string {
-        return "eliminando tarea";
+    //Ejemplo de custom response status code
+    @Get('notFound')
+    @HttpCode(404)
+    notFound() {
+        return { message: 'Task not found' };
     }
 }
